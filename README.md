@@ -42,3 +42,16 @@ cd ../../loadtest && mvn compile exec:java
 
 See `infra/wireglass-loadtest-stand/README.md`, `infra/monitoring/README.md`, and
 `loadtest/README.md` for endpoint details, configuration, and smoke tests.
+
+## Local service links
+
+Once the stacks above are running:
+
+| Service | URL | What to check |
+|---|---|---|
+| Wireglass | <http://localhost:8080> | Captured packets streaming in live from `loadtest/` |
+| Grafana | <http://localhost:3000> (`admin`/`admin`) | `jmeter` InfluxDB bucket filling in as the scenario runs |
+| OpenSearch Dashboards | <http://localhost:5601> | Log documents posted to `logs-*` indices (see `infra/monitoring/README.md`) |
+| Jaeger | <http://localhost:16686> | **Empty by default** — nothing in this repo emits spans yet (no B3 headers on requests, no OTLP export from the stand); wire that up first if you need trace data here |
+| InfluxDB UI | <http://localhost:8086> | Raw bucket/data explorer, token `wireglass-dev-token` |
+| Wireglass-loadtest-stand | <http://localhost:8081/docs> | Swagger UI for the stand's own endpoints |
