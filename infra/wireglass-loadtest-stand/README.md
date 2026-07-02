@@ -39,9 +39,20 @@ Every tier response carries `X-Tier` and `X-Delay-Ms` headers.
 | `TOKEN_SECRET` | change-me… | HMAC signing key for tokens |
 | `TOKEN_TTL` | 3600 | token lifetime (s) |
 | `REPORT_MAX_ROWS` | 5000 | cap for `/api/slow/report` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://host.docker.internal:4318` | Jaeger's OTLP/HTTP port, reached via the host since the stand and `infra/monitoring` are separate compose projects |
+| `OTEL_SERVICE_NAME` | `wireglass-loadtest-stand` | service name traces show up under in Jaeger |
 
 Change latency without rebuilding: edit `.env`, then `docker compose up -d`
 (env is read at container start).
+
+## Tracing
+
+Every request is auto-instrumented (`opentelemetry-instrumentation-fastapi`) and exported to
+Jaeger — open <http://localhost:16686>, service `wireglass-loadtest-stand`. This is a separate,
+real OTel trace id, distinct from the hand-rolled `traceparent` in the `Server-Timing` header
+(that one exists for JMeter DSL correlation exercises, not for actual tracing, and the two ids
+don't match). Requires `infra/monitoring` running; if Jaeger is down the exporter just drops
+spans, it doesn't fail requests.
 
 ## Run / modify / redeploy
 

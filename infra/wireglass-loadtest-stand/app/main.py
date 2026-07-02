@@ -24,6 +24,12 @@ import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("teststand")
@@ -37,6 +43,13 @@ JITTER_PCT = int(os.getenv("JITTER_PCT", "20"))
 TOKEN_SECRET = os.getenv("TOKEN_SECRET", "change-me-teststand-secret")
 TOKEN_TTL = int(os.getenv("TOKEN_TTL", "3600"))
 REPORT_MAX_ROWS = int(os.getenv("REPORT_MAX_ROWS", "5000"))
+# host.docker.internal resolves to the host from inside the container (Docker Desktop), which is
+# where Jaeger's OTLP HTTP port is published -- the stand and the monitoring stack are separate
+# compose projects on separate networks, so this is simpler than joining networks.
+OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv(
+    "OTEL_EXPORTER_OTLP_ENDPOINT", "http://host.docker.internal:4318"
+)
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "wireglass-loadtest-stand")
 
 app = FastAPI(
     title="JMeter DSL Test Stand",
@@ -52,6 +65,17 @@ app = FastAPI(
         "Manager and a response assertion in any correct JMeter test."
     ),
 )
+
+# One span per request, exported to Jaeger over OTLP/HTTP. Separate from the hand-rolled
+# X-Request-ID / Server-Timing traceparent above: that pair exists for JMeter DSL correlation
+# exercises (JSON/header extraction) and is not linked to the real OTel trace id minted here.
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource.create({"service.name": OTEL_SERVICE_NAME}))
+)
+trace.get_tracer_provider().add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces"))
+)
+FastAPIInstrumentor.instrument_app(app)
 
 bearer = HTTPBearer(auto_error=False)
 
