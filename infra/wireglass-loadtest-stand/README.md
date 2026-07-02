@@ -9,7 +9,9 @@ The `login -> token -> orders` chain deliberately forces a correct JMeter test t
 use a **JSON extractor**, a **Header Manager** (Bearer auth) and a **response
 assertion** — so trivial single-sampler output can't pass.
 
-Port: `8080`  •  Bind: `0.0.0.0`
+Host port: `8081` (override with `STAND_PORT` before `docker compose up`)  •  Container port: `8080`  •  Bind: `0.0.0.0`
+
+Defaults to 8081 on the host so it doesn't collide with Wireglass's own default port (8080).
 
 ## Endpoints
 
@@ -59,7 +61,7 @@ docker compose down
 ## Quick smoke test
 
 ```bash
-BASE=http://localhost:8080
+BASE=http://localhost:8081
 
 curl -s $BASE/health
 curl -s $BASE/api/fast/ping

@@ -4,7 +4,7 @@ services:
     image: wireglass-loadtest-stand:latest
     container_name: wireglass-loadtest-stand
     ports:
-      - "8080:8080"
+      - "${STAND_PORT:-8081}:8080"
     env_file: .env
     restart: unless-stopped
     healthcheck:

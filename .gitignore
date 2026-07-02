@@ -1,0 +1,14 @@
+# --- Maven build output ---
+target/
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+
+# --- OS ---
+.DS_Store
+
+# --- Local env overrides (infra/wireglass-loadtest-stand/.env ships with safe placeholder
+# defaults and is intentionally tracked; monitoring/.env is a local copy of .env.example) ---
+infra/monitoring/.env
