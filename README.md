@@ -15,6 +15,8 @@ infra/
 │                               Host port 8081.
 └── monitoring/                 Grafana + InfluxDB + Jaeger + OpenSearch via Docker Compose —
                                  an observability stack for demoing metrics/traces/log links.
+                                 Also serves demo Dashboard Links config (see below) so Wireglass
+                                 shows working Jaeger/Grafana links with no manual UI setup.
 
 loadtest/                       jmeter-java-dsl scenario that loads the stand, publishes metrics
                                  to InfluxDB, and streams captured packets to a running Wireglass
@@ -32,9 +34,11 @@ cd infra/wireglass-loadtest-stand && docker compose up -d --build
 # 2. bring up the observability stack (optional; Grafana on :3000, InfluxDB on :8086)
 cd ../monitoring && cp .env.example .env && docker compose up -d
 
-# 3. run Wireglass itself (default port 8080) — in the wireglass repo:
+# 3. run Wireglass itself (default port 8080) — in the wireglass repo — pointed at the demo
+#    dashboard-links config served by step 2, so Settings > Dashboards is pre-populated:
 #      mvn install -pl web-listview-client
-#      mvn -pl web-listview -am spring-boot:run
+#      mvn -pl web-listview -am spring-boot:run \
+#          -Dspring-boot.run.arguments=--app.listview.remote-config-url=http://localhost:8090/demo-dashboards.json
 
 # 4. run the demo load scenario against all of the above
 cd ../../loadtest && mvn compile exec:java
@@ -42,6 +46,25 @@ cd ../../loadtest && mvn compile exec:java
 
 See `infra/wireglass-loadtest-stand/README.md`, `infra/monitoring/README.md`, and
 `loadtest/README.md` for endpoint details, configuration, and smoke tests.
+
+## Demo dashboard links (zero manual setup)
+
+`infra/monitoring/wireglass-config/demo-dashboards.json` is a
+[server config file](https://github.com/artycorp/wireglass/blob/main/docs/server-config-format.md)
+with the four links below, filled in with this repo's actual ports/service names. It's served over
+HTTP by the `wireglass-config` container (`docker compose up -d` in `infra/monitoring`, port
+`8090` by default) so a clean checkout of both repos gets working links with no manual entry in
+Settings > Dashboards — just pass `app.listview.remote-config-url` as shown in step 3 above.
+
+They show up read-only (dashed border) in Wireglass and can be disabled per-item without deleting
+them; editing one creates a local override instead of touching this file.
+
+| Link | Scope | Target |
+|---|---|---|
+| Jaeger: search this request | packet (matches `:8081` traffic) | direct Jaeger search, time-windowed to the packet |
+| Jaeger: all traces | global | direct Jaeger search for `wireglass-loadtest-stand` |
+| Grafana → Jaeger (Explore) | global | same traces, through Grafana |
+| Grafana → OpenSearch Logs (Explore) | global | `logs-*` index (empty until something posts to it) |
 
 ## Local service links
 
@@ -57,3 +80,4 @@ Once the stacks above are running:
 | OpenSearch Dashboards (direct) | <http://localhost:5601> | Same `logs-*` data, OpenSearch's own UI instead of Grafana |
 | InfluxDB UI | <http://localhost:8086> | Raw bucket/data explorer, token `wireglass-dev-token` |
 | Wireglass-loadtest-stand | <http://localhost:8081/docs> | Swagger UI for the stand's own endpoints |
+| Wireglass demo config | <http://localhost:8090/demo-dashboards.json> | The dashboard-links config Wireglass loads via `app.listview.remote-config-url` (see below) |

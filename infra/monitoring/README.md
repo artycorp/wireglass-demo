@@ -12,6 +12,7 @@ Wireglass app.
 | Jaeger | <http://localhost:16686> | Distributed traces |
 | OpenSearch | <http://localhost:9200> | Log storage |
 | OpenSearch Dashboards | <http://localhost:5601> | Direct log exploration |
+| Wireglass config | <http://localhost:8090> | Serves `wireglass-config/demo-dashboards.json` — see below |
 
 Default Grafana login is `admin` / `admin`. Anonymous admin access is enabled for local demo use.
 
@@ -100,6 +101,24 @@ bucket=jmeter
 For traces, configure an OpenTelemetry OTLP exporter to `http://localhost:4318`.
 
 For logs, POST JSON documents to an index matching `logs-*`, for example `logs-python-demo`.
+
+## Wireglass Dashboard Links config
+
+`wireglass-config/demo-dashboards.json` is a plain nginx-served static file (`wireglass-config`
+service, port `8090` by default) in Wireglass's
+[server config format](https://github.com/artycorp/wireglass/blob/main/docs/server-config-format.md):
+Jaeger + Grafana Explore links, filled in with this stack's actual ports and the
+`wireglass-loadtest-stand` service name. Point a running Wireglass instance at it with:
+
+```bash
+mvn -pl web-listview -am spring-boot:run \
+    -Dspring-boot.run.arguments=--app.listview.remote-config-url=http://localhost:8090/demo-dashboards.json
+```
+
+so Settings > Dashboards is pre-populated on a clean checkout, with no manual link entry. Edit
+`wireglass-config/demo-dashboards.json` and restart the `wireglass-config` container
+(`docker compose up -d --force-recreate wireglass-config`) to change what's served; Wireglass
+re-fetches it on every page load.
 
 ## JMeter Notes
 

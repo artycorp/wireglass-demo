@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "schemas": [],
+  "dashboards": [
+    {
+      "id": "demo-jaeger-packet-search",
+      "name": "Jaeger: search this request",
+      "system": "custom",
+      "scope": "packet",
+      "urlTemplate": "http://localhost:16686/search?service=wireglass-loadtest-stand&lookback=custom&start={fromMs}000&end={toMs}000",
+      "match": ":8081"
+    },
+    {
+      "id": "demo-jaeger-all-traces",
+      "name": "Jaeger: all traces",
+      "system": "custom",
+      "scope": "global",
+      "urlTemplate": "http://localhost:16686/search?service=wireglass-loadtest-stand"
+    },
+    {
+      "id": "demo-grafana-jaeger-explore",
+      "name": "Grafana → Jaeger (Explore)",
+      "system": "grafana",
+      "scope": "global",
+      "urlTemplate": "http://localhost:3000/explore?schemaVersion=1&panes=%7B%22trc%22%3A%7B%22datasource%22%3A%22jaeger%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22jaeger%22%2C%22uid%22%3A%22jaeger%22%7D%2C%22queryType%22%3A%22search%22%2C%22service%22%3A%22wireglass-loadtest-stand%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D&orgId=1"
+    },
+    {
+      "id": "demo-grafana-opensearch-explore",
+      "name": "Grafana → OpenSearch Logs (Explore)",
+      "system": "grafana",
+      "scope": "global",
+      "urlTemplate": "http://localhost:3000/explore?schemaVersion=1&panes=%7B%22logs%22%3A%7B%22datasource%22%3A%22opensearch%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22elasticsearch%22%2C%22uid%22%3A%22opensearch%22%7D%2C%22query%22%3A%22%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D&orgId=1"
+    }
+  ]
+}
