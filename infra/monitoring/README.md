@@ -111,7 +111,8 @@ Jaeger + Grafana Explore links, filled in with this stack's actual ports and the
 `wireglass-loadtest-stand` service name. Point a running Wireglass instance at it with:
 
 ```bash
-mvn -pl web-listview -am spring-boot:run \
+mvn -pl wireglass-app -am -DskipTests install
+mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run \
     -Dspring-boot.run.arguments=--app.listview.remote-config-url=http://localhost:8090/demo-dashboards.json
 ```
 

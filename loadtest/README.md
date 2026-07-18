@@ -1,11 +1,11 @@
 # Wireglass Demo Loadtest Scenario
 
-A `jmeter-java-dsl` scenario ([`WireglassLoadtestScenario`](src/main/java/com/artembelikov/wireglassdemo/loadtest/WireglassLoadtestScenario.java))
+A `jmeter-java-dsl` scenario ([`WireglassLoadtestScenario`](src/main/java/com/wireglass/demo/loadtest/WireglassLoadtestScenario.java))
 that exercises the [wireglass-loadtest-stand](../infra/wireglass-loadtest-stand) and wires up
 both halves of the demo:
 
 - **Metrics** → `influxDbListener`, writing to the InfluxDB in [`infra/monitoring`](../infra/monitoring).
-- **Packets** → `trafficCaptureClient` (from `web-listview-client`), streaming every captured
+- **Packets** → `trafficCaptureClient` (from `wireglass-client`), streaming every captured
   request/response to a running Wireglass instance so you can watch them arrive live.
 
 ## Load profile
@@ -34,9 +34,11 @@ cd ../infra/wireglass-loadtest-stand && docker compose up -d --build
 # 2. the observability stack (Grafana :3000, InfluxDB :8086)
 cd ../infra/monitoring && cp .env.example .env && docker compose up -d
 
-# 3. Wireglass itself (default port 8080) — in the wireglass repo:
-mvn install -pl web-listview-client
-mvn -pl web-listview -am spring-boot:run
+# 3. Wireglass itself (default port 8080) — in the wireglass repo.
+#    Two steps: -am install refreshes wireglass-client, then the app runs without -am
+#    (a fully-qualified goal with -am would also run against the client, which has no main class).
+mvn -pl wireglass-app -am -DskipTests install
+mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run
 ```
 
 ## Run

@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.artembelikov</groupId>
+  <groupId>com.wireglass</groupId>
   <artifactId>wireglass-demo-loadtest</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>wireglass-demo loadtest scenario</name>
@@ -21,8 +21,8 @@
   </properties>
 
   <!-- Pin Jackson uniformly: without a BOM, standalone jmeter-dsl usage pulls an older
-       jackson-core incompatible with the jackson-databind version web-listview-client needs
-       (NoSuchMethodError BufferRecycler.releaseToPool), same fix as web-listview-client's pom. -->
+       jackson-core incompatible with the jackson-databind version wireglass-client needs
+       (NoSuchMethodError BufferRecycler.releaseToPool), same fix as wireglass-client's pom. -->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -43,15 +43,15 @@
     </dependency>
 
     <!-- Streams captured packets to a running Wireglass instance. Requires
-         `mvn install -pl web-listview-client` in the wireglass repo first, so this SNAPSHOT
+         `mvn install -pl wireglass-client` in the wireglass repo first, so this SNAPSHOT
          is present in the local Maven repository. -->
     <dependency>
-      <groupId>com.artembelikov</groupId>
-      <artifactId>web-listview-client</artifactId>
+      <groupId>com.wireglass</groupId>
+      <artifactId>wireglass-client</artifactId>
       <version>0.0.1-SNAPSHOT</version>
     </dependency>
 
-    <!-- web-listview-client only depends on slf4j-api; add a binding so its connection/capture
+    <!-- wireglass-client only depends on slf4j-api; add a binding so its connection/capture
          logs are actually visible when running this scenario standalone. -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -72,7 +72,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.4.0</version>
         <configuration>
-          <mainClass>com.artembelikov.wireglassdemo.loadtest.WireglassLoadtestScenario</mainClass>
+          <mainClass>com.wireglass.demo.loadtest.WireglassLoadtestScenario</mainClass>
         </configuration>
       </plugin>
     </plugins>

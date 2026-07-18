@@ -1,6 +1,6 @@
-package com.artembelikov.wireglassdemo.loadtest;
+package com.wireglass.demo.loadtest;
 
-import static com.artembelikov.listview.client.capture.TrafficCaptureClient.trafficCaptureClient;
+import static com.wireglass.listview.client.capture.TrafficCaptureClient.trafficCaptureClient;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.httpDefaults;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.httpHeaders;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.httpSampler;
@@ -29,8 +29,9 @@ import us.abstracta.jmeter.javadsl.core.threadgroups.RpsThreadGroup;
  * <pre>
  *   1. cd ../infra/wireglass-loadtest-stand &amp;&amp; docker compose up -d --build   (host port 8081)
  *   2. cd ../infra/monitoring &amp;&amp; cp .env.example .env &amp;&amp; docker compose up -d
- *   3. In the wireglass repo: mvn install -pl web-listview-client
- *      then: mvn -pl web-listview -am spring-boot:run   (default port 8080)
+ *   3. In the wireglass repo: mvn -pl wireglass-app -am -DskipTests install
+ *      then: mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run
+ *      (default port 8080; the -am install step also refreshes wireglass-client)
  * </pre>
  *
  * <p>Run: {@code mvn compile exec:java} from this module's directory. Override endpoints with

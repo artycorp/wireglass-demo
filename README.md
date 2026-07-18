@@ -36,8 +36,8 @@ cd ../monitoring && cp .env.example .env && docker compose up -d
 
 # 3. run Wireglass itself (default port 8080) — in the wireglass repo — pointed at the demo
 #    dashboard-links config served by step 2, so Settings > Dashboards is pre-populated:
-#      mvn install -pl web-listview-client
-#      mvn -pl web-listview -am spring-boot:run \
+#      mvn -pl wireglass-app -am -DskipTests install
+#      mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run \
 #          -Dspring-boot.run.arguments=--app.listview.remote-config-url=http://localhost:8090/demo-dashboards.json
 
 # 4. run the demo load scenario against all of the above
