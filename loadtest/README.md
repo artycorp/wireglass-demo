@@ -15,15 +15,25 @@ to be watched live rather than a quick burst. Requests are split evenly by *iter
 three tiers (125 iterations each); the medium tier counts double since its
 `login -> orders` chain is 2 requests per iteration:
 
-| Tier | Iterations | Requests | Target RPS |
+| Tier | Iterations | Requests | Target RPM |
 |------|-----------:|---------:|-----------:|
-| fast | 125 | 125 | 0.2083 |
-| medium (login + orders) | 125 | 250 | 0.4167 |
-| slow | 125 | 125 | 0.2083 |
-| **total** | | **500** | **0.8333 (= 50 RPM)** |
+| fast | 125 | 125 | 12.5 |
+| medium (login + orders) | 125 | 250 | 25 |
+| slow | 125 | 125 | 12.5 |
+| **total** | | **500** | **50** |
 
-Each tier runs as its own `rpsThreadGroup`, ramping to its target rate over 10s and holding it
-for the rest of the run.
+Each tier is a single-threaded `threadGroup` paced by a `throughputTimer` in **requests per
+minute**. One thread per tier is enough — even the slow tier's ~2s response fits inside its 4.8s
+pacing interval.
+
+> The rate is deliberately expressed in RPM rather than via `rpsThreadGroup`. That thread group is
+> backed by jpgc's Throughput Shaping Timer, which resets its per-second sample counter on every
+> wall-clock second boundary, so the first sample of each second is never throttled. Once a
+> response takes ~1s or more, a returning thread almost always lands in a fresh second and fires
+> immediately — the tier degenerates to `1/responseTime` and ignores its configured rate. Measured
+> on the slow tier: **305 requests instead of 125** (2.4x over), which put the whole run at 818
+> instead of 500. jmeter-dsl documents the constraint as *"Avoid too low (eg: under 1) values"*,
+> and all three tiers here sit far below 1 RPS. Don't switch back.
 
 ## Prerequisites
 
