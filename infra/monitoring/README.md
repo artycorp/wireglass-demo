@@ -102,13 +102,14 @@ For traces, configure an OpenTelemetry OTLP exporter to `http://localhost:4318`.
 
 For logs, POST JSON documents to an index matching `logs-*`, for example `logs-python-demo`.
 
-## Wireglass Dashboard Links config
+## Wireglass config (dashboard links + JSON Schema rules)
 
 `wireglass-config/demo-dashboards.json` is a plain nginx-served static file (`wireglass-config`
 service, port `8090` by default) in Wireglass's
-[server config format](https://github.com/artycorp/wireglass/blob/main/docs/server-config-format.md):
-Jaeger + Grafana Explore links, filled in with this stack's actual ports and the
-`wireglass-loadtest-stand` service name. Point a running Wireglass instance at it with:
+[server config format](https://github.com/artycorp/wireglass/blob/main/docs/server-config-format.md).
+It carries both halves of that format: Jaeger + Grafana Explore links filled in with this stack's
+actual ports and the `wireglass-loadtest-stand` service name, and a set of JSON Schema validation
+rules for the stand's endpoints. Point a running Wireglass instance at it with:
 
 ```bash
 mvn -pl wireglass-app -am -DskipTests install
@@ -116,10 +117,38 @@ mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run \
     -Dspring-boot.run.arguments=--app.listview.remote-config-url=http://localhost:8090/demo-dashboards.json
 ```
 
-so Settings > Dashboards is pre-populated on a clean checkout, with no manual link entry. Edit
-`wireglass-config/demo-dashboards.json` and restart the `wireglass-config` container
-(`docker compose up -d --force-recreate wireglass-config`) to change what's served; Wireglass
-re-fetches it on every page load.
+so Settings > Dashboards and Settings > JSON Schema are pre-populated on a clean checkout, with no
+manual entry. Edit `wireglass-config/demo-dashboards.json` and restart the `wireglass-config`
+container (`docker compose up -d --force-recreate wireglass-config`) to change what's served;
+Wireglass re-fetches it on every page load. Without restarting Wireglass you can also paste
+`http://localhost:8090/demo-dashboards.json` into Settings > JSON Schema > "Load rules from URL",
+which loads the same rules client-side.
+
+### The schema rules are a deliberate pass/fail pair set
+
+Eight rules cover four endpoints. Four are accurate models of what the stand actually returns and
+show as **VALID**; four are wrong on purpose and show as **INVALID**, each exercising a different
+part of the validator:
+
+| Rule | Target | Result |
+|------|--------|--------|
+| `✅ Ping response` | response | valid |
+| `✅ Login request body` | request | valid |
+| `✅ Orders response` | response | valid |
+| `✅ Slow report response` | response | valid |
+| `❌ Ping response — required field missing` | response | `$.datacenter required field is missing` |
+| `❌ Orders response — wrong type on total` | response | `$.total expected string, got number` |
+| `❌ Slow report — tier outside enum` | response | `$.tier expected one of …`, `$.count maximum 10 exceeded` |
+| `❌ Login request — bounds + missing field` | request | `$.mfa_code required …`, `$.password minLength 12 not met` |
+
+**The four `❌` rules failing is the demo working, not a broken config** — they exist to show the
+red state, the error list, and the JSON paths. Run `loadtest/` and open any packet from the three
+tiers to see both states side by side on the same body.
+
+Note the validator is a subset of JSON Schema (`type`, `required`, `properties`, `items`, `enum`,
+`additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`), and it treats an integer as
+satisfying `"type": "number"` but not the reverse — so float-valued fields like `total`, `price`
+and `value` must be typed `number`, or a whole-numbered response would fail spuriously.
 
 ## JMeter Notes
 
