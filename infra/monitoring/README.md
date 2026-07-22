@@ -87,6 +87,27 @@ Grafana datasources are provisioned automatically:
 - `Jaeger` points at the local Jaeger query endpoint.
 - `OpenSearch Logs` reads daily `logs-*` indices by `@timestamp`.
 
+## Grafana dashboard
+
+`grafana/provisioning/dashboards/` provisions one dashboard, **Wireglass Loadtest** (folder
+`Wireglass Demo`, UID `wireglass-loadtest`), reading the `jmeter` bucket that `loadtest/`'s
+`influxDbListener` writes to. Panels: request/error/p95/thread stats, throughput and p95 split by
+sampler, percentiles across the whole plan, and errors.
+
+The provider sets `updateIntervalSeconds: 10` and the directory is bind-mounted, so editing the
+JSON shows up on a browser refresh — no container restart, unlike `wireglass-config`. Adding a
+*new* file still needs `docker compose restart grafana`.
+
+Two things are pinned on purpose, for the same reason the datasource UIDs are:
+
+- The dashboard **UID** `wireglass-loadtest`, because `wireglass-config/demo-dashboards.json`
+  deep-links to `/d/wireglass-loadtest/...`. Letting Grafana generate one would break that link on
+  every `docker compose down -v`.
+- The **errors panel is deliberately not split by sampler.** `influxDbListener` writes
+  `countError` only on the `transaction=all` rollup row; per-sampler rows don't carry the field at
+  all. A per-sampler errors panel therefore reads `No data` even during a real outage — it looks
+  healthy exactly when it shouldn't. Don't "improve" it into a per-sampler breakdown.
+
 ## Python Notes
 
 For metrics, write InfluxDB line protocol directly or use the official InfluxDB client with:
@@ -120,9 +141,16 @@ mvn -pl wireglass-app org.springframework.boot:spring-boot-maven-plugin:run \
 so Settings > Dashboards and Settings > JSON Schema are pre-populated on a clean checkout, with no
 manual entry. Edit `wireglass-config/demo-dashboards.json` and restart the `wireglass-config`
 container (`docker compose up -d --force-recreate wireglass-config`) to change what's served;
-Wireglass re-fetches it on every page load. Without restarting Wireglass you can also paste
-`http://localhost:8090/demo-dashboards.json` into Settings > JSON Schema > "Load rules from URL",
-which loads the same rules client-side.
+Wireglass re-fetches it on every page load.
+
+**The two halves of this file load by two different paths, and only one of them is a shortcut.**
+`dashboards[]` is read server-side by `RemoteConfigService` at startup, so the links exist only if
+Wireglass was launched with `--app.listview.remote-config-url`. `schemas[]` can *also* be loaded
+without that flag by pasting the URL into Settings > JSON Schema > "Load rules from URL" — but that
+path is browser-only and imports the rules alone, storing them in `localStorage`. So a Wireglass
+started without the flag shows the eight schema rules and **no dashboard links at all**, which
+looks like a broken config and isn't. If the Jaeger/Grafana links are missing, check how the app
+was started before editing this file.
 
 ### The schema rules are a deliberate pass/fail pair set
 

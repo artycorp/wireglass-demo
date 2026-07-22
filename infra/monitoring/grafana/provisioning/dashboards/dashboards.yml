@@ -1,0 +1,16 @@
+apiVersion: 1
+
+providers:
+  - name: wireglass-demo
+    orgId: 1
+    type: file
+    disableDeletion: false
+    # Re-read the JSON from disk every 10s, so editing a dashboard file shows up on a browser
+    # refresh without recreating the container.
+    updateIntervalSeconds: 10
+    # Keep the dashboards under a folder rather than General, so a demo viewer sees them grouped.
+    folder: Wireglass Demo
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

@@ -1,0 +1,242 @@
+{
+  "uid": "wireglass-loadtest",
+  "title": "Wireglass Loadtest",
+  "description": "JMeter metrics from loadtest/ WireglassLoadtestScenario, written by influxDbListener into the 'jmeter' bucket. Panels split by sampler label (transaction tag).",
+  "tags": ["wireglass", "demo", "jmeter"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "transaction",
+        "label": "Sampler",
+        "type": "query",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "multi": true,
+        "includeAll": true,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "refresh": 2,
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"jmeter\", tag: \"transaction\")\n  |> filter(fn: (r) => r._value != \"all\" and r._value != \"internal\")"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Requests",
+      "description": "Total samples in the selected range. Read off the transaction=all rollup row that influxDbListener writes alongside the per-sampler rows.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"count\")\n  |> filter(fn: (r) => r.transaction == \"all\" and r.statut == \"all\")\n  |> sum()\n  |> keep(columns: [\"_value\"])"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Errors",
+      "description": "Total failed samples. Green at zero is the expected state for a healthy demo run.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"countError\")\n  |> filter(fn: (r) => r.transaction == \"all\" and r.statut == \"all\")\n  |> sum()\n  |> keep(columns: [\"_value\"])"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "p95 (worst interval)",
+      "description": "Highest p95 any reporting interval saw. The slow tier's ~2s response dominates this number.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "color": { "mode": "fixed", "fixedColor": "text" } },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"pct95.0\")\n  |> filter(fn: (r) => r.transaction == \"all\" and r.statut == \"all\")\n  |> max()\n  |> keep(columns: [\"_value\"])"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Active threads",
+      "description": "From the transaction=internal row JMeter emits for thread counts. Should sit at 3 during a run: one thread per tier.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r.transaction == \"internal\")\n  |> filter(fn: (r) => r._field == \"maxAT\")\n  |> group()\n  |> sort(columns: [\"_time\"])\n  |> keep(columns: [\"_time\", \"_value\"])"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Throughput by sampler",
+      "description": "Samples per minute. The three tiers are paced by throughputTimer at 12.5 / 25 / 12.5 RPM, so these lines should sit flat and well separated -- a slow tier drifting upward is the rpsThreadGroup overshoot bug documented in loadtest/README.md.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 11, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqpm",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "auto", "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"count\")\n  |> filter(fn: (r) => r.statut == \"all\")\n  |> filter(fn: (r) => r.transaction != \"all\" and r.transaction != \"internal\")\n  |> filter(fn: (r) => contains(value: r.transaction, set: ${transaction:json}))\n  |> group(columns: [\"transaction\"])\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"transaction\"])\n  |> rename(columns: {transaction: \"sampler\"})"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Response time p95 by sampler",
+      "description": "The three latency tiers of wireglass-loadtest-stand should separate cleanly here: fast ~30ms, medium ~300ms, slow ~2s.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 11, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "auto", "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"pct95.0\")\n  |> filter(fn: (r) => r.statut == \"all\")\n  |> filter(fn: (r) => r.transaction != \"all\" and r.transaction != \"internal\")\n  |> filter(fn: (r) => contains(value: r.transaction, set: ${transaction:json}))\n  |> group(columns: [\"transaction\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"transaction\"])\n  |> rename(columns: {transaction: \"sampler\"})"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Response time percentiles (all samplers)",
+      "description": "avg / p90 / p95 / p99 across the whole plan, from the transaction=all rollup.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never", "spanNulls": true }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\")\n  |> filter(fn: (r) => r._field == \"avg\" or r._field == \"pct90.0\" or r._field == \"pct95.0\" or r._field == \"pct99.0\")\n  |> filter(fn: (r) => r.transaction == \"all\" and r.statut == \"all\")\n  |> group(columns: [\"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Errors (all samplers)",
+      "description": "Flat zero is the expected state; any bar means the stand started rejecting or timing out. Not split by sampler on purpose: influxDbListener writes countError ONLY on the transaction=all rollup row, so a per-sampler version of this panel would read No data even during a real outage. To find which tier failed, compare the statut=ok and statut=all series in 'Throughput by sampler'.",
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "displayName": "errors",
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60, "showPoints": "never", "spanNulls": false }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "query": "from(bucket: \"jmeter\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"jmeter\" and r._field == \"countError\")\n  |> filter(fn: (r) => r.transaction == \"all\" and r.statut == \"all\")\n  |> group()\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> set(key: \"_field\", value: \"errors\")"
+        }
+      ]
+    }
+  ]
+}

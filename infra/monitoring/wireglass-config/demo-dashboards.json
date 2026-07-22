@@ -146,6 +146,21 @@
   ],
   "dashboards": [
     {
+      "id": "demo-grafana-loadtest-dashboard",
+      "name": "Grafana: loadtest dashboard",
+      "system": "grafana",
+      "scope": "global",
+      "urlTemplate": "http://localhost:3000/d/wireglass-loadtest/wireglass-loadtest?orgId=1&from=now-1h&to=now"
+    },
+    {
+      "id": "demo-grafana-loadtest-packet",
+      "name": "Grafana: metrics around this request",
+      "system": "grafana",
+      "scope": "packet",
+      "urlTemplate": "http://localhost:3000/d/wireglass-loadtest/wireglass-loadtest?orgId=1&from={fromMs}&to={toMs}",
+      "match": ":8081"
+    },
+    {
       "id": "demo-jaeger-packet-search",
       "name": "Jaeger: search this request",
       "system": "custom",
