@@ -66,23 +66,22 @@ app = FastAPI(
     ),
 )
 
-# One span per request, exported to Jaeger over OTLP/HTTP. Separate from the hand-rolled
-# X-Request-ID / Server-Timing traceparent above: that pair exists for JMeter DSL correlation
-# exercises (JSON/header extraction) and is not linked to the real OTel trace id minted here.
+# One span per request, exported to Jaeger over OTLP/HTTP. The correlation middleware below
+# reads *this* span's real trace/span ids and echoes them back as a W3C `traceparent` response
+# header, so a captured packet deep-links to the exact trace in Jaeger. `instrument_app()` is
+# called further down, *after* the middleware is registered -- see the note at that call.
 trace.set_tracer_provider(
     TracerProvider(resource=Resource.create({"service.name": OTEL_SERVICE_NAME}))
 )
 trace.get_tracer_provider().add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces"))
 )
-FastAPIInstrumentor.instrument_app(app)
 
 bearer = HTTPBearer(auto_error=False)
 
 
-# --- Correlation IDs (traceID / request-id / Server-Timing) -----------------
+# --- Correlation IDs (request-id + real OTel traceparent) -------------------
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
-_TRACEPARENT_RE = re.compile(r"^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$")
 
 
 def _resolve_request_id(req: Request) -> str:
@@ -93,37 +92,70 @@ def _resolve_request_id(req: Request) -> str:
     return str(uuid.uuid4())
 
 
-def _resolve_trace_id(req: Request) -> str:
-    """Continue an incoming W3C traceparent's trace-id, else start a new trace."""
-    match = _TRACEPARENT_RE.match(req.headers.get("traceparent", ""))
-    return match.group(1) if match else uuid.uuid4().hex
+def _active_traceparent() -> tuple[str, str] | None:
+    """W3C ``(trace_id, span_id)`` of the active OTel span, or ``None`` if there is no valid one.
+
+    ``FastAPIInstrumentor`` is installed as the *outer* ASGI middleware (see ``instrument_app``
+    below), so by the time this correlation middleware runs the server span is started and
+    current. These are the exact ids ``BatchSpanProcessor`` exports to Jaeger -- which is what
+    makes the emitted ``traceparent`` resolve to a real trace instead of a synthetic one. An
+    incoming ``traceparent`` request header is honoured automatically: the global W3C propagator
+    continues its trace, so ``trace_id`` here already matches the caller's.
+    """
+    span_context = trace.get_current_span().get_span_context()
+    if span_context.is_valid:
+        return format(span_context.trace_id, "032x"), format(span_context.span_id, "016x")
+    return None
 
 
 @app.middleware("http")
 async def correlation_middleware(request: Request, call_next):
     request.state.request_id = _resolve_request_id(request)
-    request.state.trace_id = _resolve_trace_id(request)
-    request.state.span_id = secrets.token_hex(8)
 
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
+    ids = _active_traceparent()
+    if ids is None:
+        # No recording span (should not happen on instrumented routes) -- fall back to a
+        # synthetic pair so the correlation headers are always present, just not linkable.
+        ids = (uuid.uuid4().hex, secrets.token_hex(8))
+    trace_id, span_id = ids
+    traceparent = f"00-{trace_id}-{span_id}-01"
+
     response.headers["X-Request-ID"] = request.state.request_id
-    response.headers["Server-Timing"] = (
-        f"total;dur={duration_ms}, "
-        f'traceparent;desc="00-{request.state.trace_id}-{request.state.span_id}-01"'
-    )
+    # Standard W3C header -- the full composite context.
+    response.headers["traceparent"] = traceparent
+    # Same value in Server-Timing so it is also reachable from the browser Performance API.
+    response.headers["Server-Timing"] = f'total;dur={duration_ms}, traceparent;desc="{traceparent}"'
+    # B3 trio carrying the *bare* ids. Wireglass's "navigate by header" menu substitutes a whole
+    # header value into its URL template ({value}) with no substring extraction, and its default
+    # trace link keys off `x-b3-traceid` -- so the bare trace-id here (not the composite
+    # `traceparent`) is what yields a clean one-click Jaeger/SignalFx deep-link, e.g.
+    # `http://localhost:16686/trace/{value}`.
+    response.headers["X-B3-TraceId"] = trace_id
+    response.headers["X-B3-SpanId"] = span_id
+    response.headers["X-B3-Sampled"] = "1"
     logger.info(
         "%s %s -> %s request_id=%s trace_id=%s dur_ms=%s",
         request.method,
         request.url.path,
         response.status_code,
         request.state.request_id,
-        request.state.trace_id,
+        trace_id,
         duration_ms,
     )
     return response
+
+
+# Register OTel instrumentation *after* ``correlation_middleware`` so the OTel ASGI middleware
+# wraps it (outermost). Starlette builds its stack from ``reversed(user_middleware)`` and each
+# ``add_middleware`` inserts at index 0, so registering OTel last puts the server span *outside*
+# ``correlation_middleware`` -- making the span current when it reads the trace ids above.
+# Instrumenting first (the usual order) would run the middleware outside the span and read an
+# invalid, unlinkable id.
+FastAPIInstrumentor.instrument_app(app)
 
 
 # --- Latency helper ---------------------------------------------------------

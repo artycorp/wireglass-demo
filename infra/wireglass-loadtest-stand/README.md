@@ -48,11 +48,23 @@ Change latency without rebuilding: edit `.env`, then `docker compose up -d`
 ## Tracing
 
 Every request is auto-instrumented (`opentelemetry-instrumentation-fastapi`) and exported to
-Jaeger — open <http://localhost:16686>, service `wireglass-loadtest-stand`. This is a separate,
-real OTel trace id, distinct from the hand-rolled `traceparent` in the `Server-Timing` header
-(that one exists for JMeter DSL correlation exercises, not for actual tracing, and the two ids
-don't match). Requires `infra/monitoring` running; if Jaeger is down the exporter just drops
-spans, it doesn't fail requests.
+Jaeger — open <http://localhost:16686>, service `wireglass-loadtest-stand`. Requires
+`infra/monitoring` running; if Jaeger is down the exporter just drops spans, it doesn't fail
+requests.
+
+Each response carries a **real** W3C `traceparent` header (and the same value under
+`Server-Timing: traceparent;desc=...`) whose trace-id and span-id are the *actual* exported span,
+so a captured packet deep-links straight to its trace in Jaeger / SignalFx. This is what the
+Wireglass "navigate by header" menu reads. Two consequences worth knowing:
+
+- The correlation middleware reads the live span, which only works because
+  `FastAPIInstrumentor` is installed as the **outer** ASGI middleware — see the ordering note
+  in `app/main.py` around `instrument_app(app)`. Don't reorder it.
+- An incoming `traceparent` request header is continued automatically (the global W3C
+  propagator), so the response's trace-id matches the caller's when one is supplied.
+
+`X-Request-ID` is still a separate, hand-minted id for JMeter DSL correlation exercises (echoed
+back if the client sends a safe one), independent of the trace.
 
 ## Run / modify / redeploy
 
